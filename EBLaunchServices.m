@@ -1,24 +1,26 @@
 /*
  EBLaunchServices.m
+ Copyright (c) eric_bro, 2012 (eric.broska@me.com)
  
- Copyright (c) 2012 eric_bro (eric.broska@me.com)
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+ Permission to use, copy, modify, and/or distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
 
 #import "EBLaunchServices.h"
 #import <CoreServices/CoreServices.h>
 
 /* Private prototype from the LaunchServices framework */
 OSStatus _LSCopyAllApplicationURLs(CFArrayRef *array);
-
-typedef id (^EBMappingBlock)(id obj);
-
-
-@interface EBLaunchServicesListItem (Private)
-@property (nonatomic, retain) NSString *name;
-@property (nonatomic, retain) NSURL *url;
-@property (nonatomic, retain) NSImage *icon;
-@end
+typedef  id (^EBMappingBlock)(id obj);
 
 @implementation EBLaunchServicesListItem
 @synthesize url, name, icon;
@@ -32,6 +34,12 @@ typedef id (^EBMappingBlock)(id obj);
     } else self = nil;
     
     return self;
+}
+- (void)dealloc
+{
+    [url release];
+    /* We don't release other ivars, because thay are all autorelease'd */
+    [super dealloc];
 }
 
 @end
@@ -47,24 +55,26 @@ typedef id (^EBMappingBlock)(id obj);
 
 #pragma mark Shared Lists
 
-+ (NSArray *)allItemsFromList:(NSString *)list_name
++ (NSArray *)allItemsFromList:(CFStringRef)list_name
 {
     LSSharedFileListRef list = LSSharedFileListCreate(NULL, (CFStringRef)list_name, NULL);
-    NSArray *tmp = [(NSArray *)LSSharedFileListCopySnapshot(list, NULL) autorelease];
+    NSArray *tmp = (NSArray *)LSSharedFileListCopySnapshot(list, NULL);
     CFRelease(list);
-    return !tmp ? nil : [EBLaunchServices mappingArray: tmp usingBlock:^id(id obj) {
+    id value = [EBLaunchServices mappingArray: tmp usingBlock:^id(id obj) {
         EBLaunchServicesListItem *item =[[EBLaunchServicesListItem alloc] init];
-        [item setName: (NSString *)LSSharedFileListItemCopyDisplayName((LSSharedFileListItemRef)obj)];
+        [item setName: [(NSString *)LSSharedFileListItemCopyDisplayName((LSSharedFileListItemRef)obj) autorelease]];
         NSURL *url = nil;
         LSSharedFileListItemResolve((LSSharedFileListItemRef)obj, 0, (CFURLRef *)&url, NULL);
         if (url) [item setUrl: url];
-        [item setIcon: [[NSImage alloc] initWithIconRef: 
-                        LSSharedFileListItemCopyIconRef((LSSharedFileListItemRef)obj)]];
-        return item;
+        [item setIcon: [[[NSImage alloc] initWithIconRef: 
+                         LSSharedFileListItemCopyIconRef((LSSharedFileListItemRef)obj)] autorelease]];
+        return [item autorelease];
     }];
+    CFRelease(tmp);
+    return (value);
 }
 
-+ (BOOL)addItemWithURL:(NSURL *)url toList:(NSString *)list_name
++ (BOOL)addItemWithURL:(NSURL *)url toList:(CFStringRef)list_name
 {
     LSSharedFileListRef list = LSSharedFileListCreate(NULL, (CFStringRef)list_name, NULL);
     if (!list) return NO;
@@ -77,26 +87,25 @@ typedef id (^EBMappingBlock)(id obj);
     return item ? (CFRelease(item), YES) : NO;
 }
 
-+ (BOOL)removeElementWithIndex:(NSInteger)index fromList:(NSString *)list_name
++ (BOOL)removeElementWithIndex:(NSInteger)index fromList:(CFStringRef)list_name
 {
     LSSharedFileListRef list = LSSharedFileListCreate(NULL, (CFStringRef)list_name, NULL);
-    NSArray *tmp = (NSArray *)LSSharedFileListCopySnapshot(list, NULL);
-    LSSharedFileListItemRef item_to_remove = (LSSharedFileListItemRef)[tmp objectAtIndex: index];
-    [tmp release];
-    if (!item_to_remove) return NO;
+    LSSharedFileListItemRef item_to_remove = (LSSharedFileListItemRef)[(NSArray *)LSSharedFileListCopySnapshot(list, NULL) 
+                                                                       objectAtIndex: index];
+    if (!item_to_remove || !list) return (NO);
     LSSharedFileListItemRemove(list , item_to_remove);
     CFRelease(list);
-    return YES;
+    return (YES);
 }
 
-+ (BOOL)removeElementWithURL:(NSURL *)url fromList:(NSString *)list_name
++ (BOOL)removeItemWithURL:(NSURL *)url fromList:(CFStringRef)list_name
 {
     return [EBLaunchServices removeElementWithIndex: 
             [EBLaunchServices indexOfItemWithURL: url inList: (CFStringRef)list_name]
                                            fromList: list_name];
 }
 
-+ (BOOL)clearList:(NSString *)list_name
++ (BOOL)clearList:(CFStringRef)list_name
 {
     LSSharedFileListRef list = LSSharedFileListCreate(NULL, (CFStringRef)list_name, NULL);
     BOOL isok = (LSSharedFileListRemoveAllItems(list) == noErr);
@@ -164,12 +173,13 @@ typedef id (^EBMappingBlock)(id obj);
 
 
 + (NSArray *)allAvailableFileExtensionsForApplication:(NSString *)full_path
-{
-    NSMutableArray *value = [[NSMutableArray alloc] init];
-    
+{    
     NSArray *all_doc_types = [[NSDictionary dictionaryWithContentsOfFile: full_path] 
                               objectForKey: @"CFBundleDocumentTypes"];
-    if ( ! all_doc_types) return nil;
+    if ( !all_doc_types) {
+        return nil;
+    }
+     NSMutableArray *value = [[NSMutableArray alloc] init];
     [all_doc_types enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
         [value addObjectsFromArray: [obj objectForKey: @"CFBundleTypeExtensions"]]; 
     }];
@@ -206,7 +216,8 @@ typedef id (^EBMappingBlock)(id obj);
     CFStringRef uttype = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, 
                                                                (CFStringRef)extension, NULL);
     CFStringRef mime = UTTypeCopyPreferredTagWithClass(uttype, kUTTagClassMIMEType);
-    return mime ? (NSString *)mime : nil;
+    CFRelease(uttype);
+    return mime ? [(NSString *)mime autorelease] : nil;
 }
 
 + (NSArray *)allAvailableFileExtensionsForUTI:(NSString *)file_type
@@ -224,28 +235,32 @@ typedef id (^EBMappingBlock)(id obj);
     CFStringRef uttype = UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType,
                                                                (CFStringRef)mime_type, NULL);
     CFStringRef extension = UTTypeCopyPreferredTagWithClass(uttype, kUTTagClassFilenameExtension);
-    return extension ? (NSString *)extension : nil;
+    CFRelease(uttype);
+    return extension ? [(NSString *)extension autorelease] : nil;
 }
 
 + (NSArray *)allAvailableFileExtensionsForMIMEType:(NSString *)mime_type
 {
     CFStringRef uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, 
                                                             (CFStringRef)mime_type, NULL);
-    return [EBLaunchServices allAvailableFileExtensionsForUTI: (NSString *)uti];
+    id value = [EBLaunchServices allAvailableFileExtensionsForUTI: (NSString *)uti];
+    return (CFRelease(uti), value);
 }
 
 + (NSArray  *)allAvailableFileExtensionsForPboardType:(NSString *)pboard_type
 {
     CFStringRef uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassNSPboardType,
                                                             (CFStringRef)pboard_type, NULL);
-    return [EBLaunchServices allAvailableFileExtensionsForUTI: (NSString *)uti];
+    id value = [EBLaunchServices allAvailableFileExtensionsForUTI: (NSString *)uti];
+    return (CFRelease(uti), value);
 }
 
 + (NSArray *)allAvailableFileExtensionsForFileExtension:(NSString *)extension
 {
     CFStringRef uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, 
                                                             (CFStringRef)extension, NULL);
-    return [EBLaunchServices allAvailableFileExtensionsForUTI: (NSString *)uti];
+    id value = [EBLaunchServices allAvailableFileExtensionsForUTI: (NSString *)uti];
+    return (CFRelease(uti), value);
 }
 
 
@@ -274,15 +289,16 @@ typedef id (^EBMappingBlock)(id obj);
     }
 }
 
-+ (NSInteger)indexOfItemWithURL:(NSURL *)url inList:(NSString *)list_name
++ (NSInteger)indexOfItemWithURL:(NSURL *)url inList:(CFStringRef)list_name
 {
     NSArray *tmp = [EBLaunchServices allItemsFromList: list_name];
     NSInteger idx;    
-    idx = [tmp indexOfObjectPassingTest:^BOOL(id obj, NSUInteger idx, BOOL *stop) {
+    idx = [tmp indexOfObjectPassingTest: ^BOOL(id obj, NSUInteger idx, BOOL *stop) {
         return [[(EBLaunchServicesListItem *)obj url] isEqualTo: url];
     }];
     return idx;
 }
+
 
 /* Going throw an array's elements doing something with them, and create items for a new array */
 

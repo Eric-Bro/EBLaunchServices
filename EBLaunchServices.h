@@ -1,8 +1,19 @@
 /*
  EBLaunchServices.h
+ Copyright (c) eric_bro, 2012 (eric.broska@me.com)
  
- Copyright (c) 2012 eric_bro (eric.broska@me.com)
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.*/
+ Permission to use, copy, modify, and/or distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+ 
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
 
 //  This class allows you to deal with some LaunchServices functions (such a Shared Lists, files types and extension information) via ligth-weight API.
 //  You can find the list of all availabe Shared Lists below:
@@ -15,7 +26,17 @@
 //  kLSSharedFileListSessionLoginItems
 //  kLSSharedFileListGlobalLoginItems
 
+
+extern CFStringRef kLSSharedFileListFavoriteVolumes;
+extern CFStringRef kLSSharedFileListFavoriteItems;
+extern CFStringRef kLSSharedFileListRecentApplicationItems;
+extern CFStringRef kLSSharedFileListRecentDocumentItems; 
+extern CFStringRef kLSSharedFileListRecentServerItems;
+extern CFStringRef kLSSharedFileListSessionLoginItems; 
+extern CFStringRef kLSSharedFileListGlobalLoginItems; 
+
 #import <Cocoa/Cocoa.h>
+
 
 enum EBItemsViewFormat {
     EBItemsAsBundleIDs,
@@ -26,11 +47,11 @@ enum EBItemsViewFormat {
 @interface EBLaunchServices : NSObject
 
 /* Shared lists */
-+ (NSArray *)allItemsFromList:(NSString *)list_name;
-+ (BOOL)addItemWithURL:(NSURL *)url toList:(NSString *)list_name;
-+ (BOOL)removeElementWithIndex:(NSInteger)index fromList:(NSString *)list_name;
-+ (BOOL)removeElementWithURL:(NSURL *)url fromList:(NSString *)list_name;
-+ (BOOL)clearList:(NSString *)list_name;
++ (NSArray *)allItemsFromList:(CFStringRef)list_name;
++ (BOOL)addItemWithURL:(NSURL *)url toList:(CFStringRef)list_name;
++ (BOOL)removeElementWithIndex:(NSInteger)index fromList:(CFStringRef)list_name;
++ (BOOL)removeItemWithURL:(NSURL *)url fromList:(CFStringRef)list_name;
++ (BOOL)clearList:(CFStringRef)list_name;
 
 /* Application abilities */
 + (NSArray *)allApplicationsFormattedAs:(enum EBItemsViewFormat)response_format;
@@ -53,7 +74,7 @@ enum EBItemsViewFormat {
 @end
 
 @interface EBLaunchServicesListItem : NSObject 
-@property (nonatomic, readonly) NSString *name;
-@property (nonatomic, readonly) NSURL *url;
-@property (nonatomic, readonly) NSImage *icon;
+@property (nonatomic, retain) NSString *name;
+@property (nonatomic, retain) NSURL *url;
+@property (nonatomic, retain) NSImage *icon;
 @end
