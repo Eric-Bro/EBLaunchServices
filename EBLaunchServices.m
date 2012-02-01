@@ -89,6 +89,7 @@ typedef  id (^EBMappingBlock)(id obj);
 
 + (BOOL)removeItemWithIndex:(NSInteger)index fromList:(CFStringRef)list_name
 {
+    if (index == -1) return NO;
     LSSharedFileListRef list = LSSharedFileListCreate(NULL, (CFStringRef)list_name, NULL);
     LSSharedFileListItemRef item_to_remove = (LSSharedFileListItemRef)[(NSArray *)LSSharedFileListCopySnapshot(list, NULL) 
                                                                        objectAtIndex: index];
@@ -292,7 +293,7 @@ typedef  id (^EBMappingBlock)(id obj);
 + (NSInteger)indexOfItemWithURL:(NSURL *)url inList:(CFStringRef)list_name
 {
     NSArray *tmp = [EBLaunchServices allItemsFromList: list_name];
-    NSInteger idx;    
+    NSInteger idx = -1;    
     idx = [tmp indexOfObjectPassingTest: ^BOOL(id obj, NSUInteger idx, BOOL *stop) {
         return [[(EBLaunchServicesListItem *)obj url] isEqualTo: url];
     }];
