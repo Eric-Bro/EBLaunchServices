@@ -49,7 +49,7 @@ enum EBItemsViewFormat {
 /* Shared lists */
 + (NSArray *)allItemsFromList:(CFStringRef)list_name;
 + (BOOL)addItemWithURL:(NSURL *)url toList:(CFStringRef)list_name;
-+ (BOOL)removeElementWithIndex:(NSInteger)index fromList:(CFStringRef)list_name;
++ (BOOL)removeItemWithIndex:(NSInteger)index fromList:(CFStringRef)list_name;
 + (BOOL)removeItemWithURL:(NSURL *)url fromList:(CFStringRef)list_name;
 + (BOOL)clearList:(CFStringRef)list_name;
 
